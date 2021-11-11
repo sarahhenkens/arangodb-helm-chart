@@ -1,0 +1,17 @@
+{{- if eq .Values.mode "cluster" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "arangodb.coordinator.fullname" . }}-internal
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: server
+      port: 8529
+      targetPort: 8529
+  selector:
+    {{- include "arangodb.coordinator.selectorLabels" . | nindent 4 }}
+{{- end }}

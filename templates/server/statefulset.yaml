@@ -1,0 +1,177 @@
+{{ $name := include "arangodb.dbserver.fullname" . }}
+{{ $serviceName := printf "%s-internal" (include "arangodb.dbserver.fullname" .)  }}
+{{ $agentName := include "arangodb.agent.fullname" . }}
+{{ $agentServiceName := printf "%s-internal" (include "arangodb.agent.fullname" .)  }}
+{{ $replicas := ternary 1 .Values.dbserver.replicas (eq .Values.mode "single") }}
+{{ $serverContainerPort := 8529 }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "arangodb.dbserver.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ $serviceName }}
+  replicas: {{ $replicas }}
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      {{- include "arangodb.dbserver.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.global.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "arangodb.dbserver.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ include "arangodb.serviceAccountName" . }}
+      volumes:
+        - name: lifecycle
+          emptyDir: {}
+        {{- if not .Values.auth.jwtSecret.existingFile }}
+        - name: cluster-jwt
+          secret:
+            defaultMode: 420
+            secretName: {{ include "arangodb.jwtSecret.secretName" . }}
+        {{- end }}
+      initContainers:
+        - name: init-lifecycle
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /usr/bin/arangodb_operator
+            - lifecycle
+            - copy
+            - '--target'
+            - /lifecycle/tools
+          volumeMounts:
+            - mountPath: /lifecycle/tools
+              name: lifecycle
+      containers:
+        - name: server
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - '/usr/sbin/arangod'
+            {{- if eq .Values.mode "cluster" }}
+            - '--cluster.my-role=PRIMARY'
+            {{- else if eq .Values.mode "activefailover" }}
+            - '--cluster.my-role=SINGLE'
+            - '--replication.active-failover'
+            {{- end }}
+            {{- if not (eq .Values.mode "single") }}
+            {{- range untilStep 0 (int .Values.agent.replicas) 1 }}
+            - '--cluster.agency-endpoint=tcp://{{ $agentName }}-{{ . }}.{{ $agentServiceName }}:8531'
+            {{- end }}
+            - '--cluster.my-address=tcp://$(MY_POD_NAME).{{ $serviceName }}:{{ $serverContainerPort }}'
+            {{- end }}
+            - '--database.directory=/data'
+            - '--server.authentication=true'
+            - '--server.authentication-unix-sockets=true'
+            - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.mountPath" . }}'
+            - '--server.endpoint=tcp://[::]:{{ $serverContainerPort }}'
+            - '--server.endpoint=unix:///tmp/arangodb.sock'
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /lifecycle/tools/arangodb_operator
+                  - lifecycle
+                  - preStop
+          livenessProbe:
+            exec:
+              command:
+                - /lifecycle/tools/arangodb_operator
+                - lifecycle
+                - probe
+                - '--endpoint=/_api/version'
+                - '--auth'
+            failureThreshold: 10
+            initialDelaySeconds: 900
+            periodSeconds: 60
+            successThreshold: 1
+            timeoutSeconds: 2
+          readinessProbe:
+            {{- if eq .Values.mode "activefailover" }}
+            exec:
+              command:
+                - /lifecycle/tools/arangodb_operator
+                - lifecycle
+                - probe
+                - '--endpoint=/_api/version'
+                - '--auth'
+            {{- else }}
+            httpGet:
+              path: /_admin/server/availability
+              port: {{ $serverContainerPort }}
+            {{- end }}
+            failureThreshold: 10
+            initialDelaySeconds: 2
+            periodSeconds: 2
+            successThreshold: 1
+            timeoutSeconds: 2
+          volumeMounts:
+            - mountPath: /data
+              name: data
+            - mountPath: /lifecycle/tools
+              name: lifecycle
+            {{- if not .Values.auth.jwtSecret.existingFile }}
+            - mountPath: {{ include "arangodb.jwtSecret.mountPath" . }}
+              name: cluster-jwt
+            {{- end }}
+          ports:
+            - containerPort: {{ $serverContainerPort }}
+              name: server
+              protocol: TCP
+          env:
+            - name: ARANGODB_OVERRIDE_DETECTED_TOTAL_MEMORY
+              valueFrom:
+                resourceFieldRef:
+                  containerName: server
+                  resource: limits.memory
+            - name: ARANGODB_OVERRIDE_DETECTED_NUMBER_OF_CORES
+              valueFrom:
+                resourceFieldRef:
+                  containerName: server
+                  resource: limits.cpu
+            - name: MY_POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: MY_POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: MY_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          resources:
+            {{- toYaml .Values.dbserver.resources | nindent 12 }}
+      {{- include "imagePullSecrets" . | nindent 6 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - {{ .Values.dbserver.storage.accessMode | default "ReadWriteOnce" }}
+        resources:
+          requests:
+            storage: {{ .Values.dbserver.storage.size }}
+        {{- if .Values.dbserver.storage.storageClass }}
+        storageClassName: {{ .Values.dbserver.storage.storageClass }}
+        {{- end }}

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "arangodb.dbserver.fullname" . }}-internal
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: server
+      port: 8529
+      targetPort: 8529
+  selector:
+    {{- include "arangodb.dbserver.selectorLabels" . | nindent 4 }}

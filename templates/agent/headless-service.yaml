@@ -1,0 +1,17 @@
+{{- if or (eq .Values.mode "cluster") (eq .Values.mode "activefailover") }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "arangodb.fullname" . }}-agent-internal
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: server
+      port: 8531
+      targetPort: 8531
+  selector:
+    {{- include "arangodb.agent.selectorLabels" . | nindent 4 }}
+{{- end }}

@@ -1,0 +1,89 @@
+# Default values for arangodb.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+mode: cluster
+
+image:
+  repository: arangodb
+  pullPolicy: IfNotPresent
+  # Overrides the image tag whose default is the chart appVersion.
+  tag: ""
+
+# The operator of which we pull our lifecycle tools from
+operator:
+  image:
+    repository: arangodb/kube-arangodb
+    pullPolicy: IfNotPresent
+    tag: "1.2.1"
+
+# Alternatively, the value may be specified as an array of strings.
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+global:
+  # Extra annotations to attach to all component pods
+  podAnnotations: {}
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+auth:
+  jwtSecret:
+    # jwtSecret is the name of the kubernetes secret that has the cluster JWT Secret
+    # If this is null, then a randome one will be generated upon chart installation.
+    secretName: null
+
+    # Setting existingFile to a file containing the JWT Secret will disable the mounting
+    # of the kubernetes secret. Commonly used when injecting the JWT secret with Vault.
+    existingFile: null
+
+dbserver:
+  replicas: 3
+  resources: {}
+  storage:
+    size: 5Gi
+    storageClass: null
+    accessMode: ReadWriteOnce
+
+coordinator:
+  replicas: 3
+  resources: {}
+
+agent:
+  replicas: 3
+  resources: {}
+  storage:
+    size: 5Gi
+    storageClass: null
+    accessMode: ReadWriteOnce
+
+
