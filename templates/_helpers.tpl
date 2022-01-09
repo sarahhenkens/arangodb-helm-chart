@@ -59,7 +59,7 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
-Common labels for the dbserver
+Common labels
 */}}
 {{- define "arangodb.dbserver.labels" -}}
 helm.sh/chart: {{ include "arangodb.chart" . }}
@@ -71,7 +71,7 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
 {{/*
-Selector labels for the dbserver
+Selector labels
 */}}
 {{- define "arangodb.dbserver.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "arangodb.name" . }}
@@ -119,11 +119,10 @@ The name JWT token name
 {{- end }}
 {{- end }}
 
-
 {{/*
-The mount path of the jwt secret
+The path of the jwt secret
 */}}
-{{- define "arangodb.jwtSecret.mountPath" -}}
+{{- define "arangodb.jwtSecret.path" -}}
 {{- if .Values.auth.jwtSecret.existingFile }}
 {{- .Values.auth.jwtSecret.existingFile }}
 {{- else }}
@@ -132,6 +131,9 @@ The mount path of the jwt secret
 {{- end }}
 
 
+{{- define "arangodb.jwtSecret.mountPath" -}}
+{{- "/secrets/cluster/jwt" }}
+{{- end }}
 {{/*
 Common labels
 */}}

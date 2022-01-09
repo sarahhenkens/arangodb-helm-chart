@@ -74,7 +74,7 @@ spec:
             - '--database.directory=/data'
             - '--server.authentication=true'
             - '--server.authentication-unix-sockets=true'
-            - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.mountPath" . }}'
+            - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.path" . }}'
             - '--server.endpoint=tcp://[::]:{{ $serverContainerPort }}'
             - '--server.endpoint=unix:///tmp/arangodb.sock'
           lifecycle:

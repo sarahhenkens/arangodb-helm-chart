@@ -98,7 +98,7 @@ spec:
             - '--cluster.my-address=tcp://$(MY_POD_NAME).{{ $serviceName }}:8529'
             - '--server.endpoint=tcp://[::]:8529'
             - '--server.authentication=true'
-            - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.mountPath" . }}'
+            - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.path" . }}'
             - '--database.directory=/data'
           lifecycle:
             preStop:

@@ -67,7 +67,7 @@ spec:
             - '--server.endpoint=tcp://[::]:8531'
             - '--database.directory=/agent-data'
             - '--server.authentication=true'
-            - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.mountPath" . }}'
+            - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.path" . }}'
           lifecycle:
             preStop:
               exec:
