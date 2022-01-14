@@ -75,7 +75,7 @@ Selector labels
 */}}
 {{- define "arangodb.dbserver.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "arangodb.name" . }}
-app.kubernetes.io/component: server
+app.kubernetes.io/component: dbserver
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
@@ -173,5 +173,27 @@ Selector labels
 {{- define "arangodb.coordinator.selectorLabels" -}}
 app.kubernetes.io/name: {{ include "arangodb.name" . }}
 app.kubernetes.io/component: coordinator
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+
+{{/*
+Common labels
+*/}}
+{{- define "arangodb.haproxy.labels" -}}
+helm.sh/chart: {{ include "arangodb.chart" . }}
+{{ include "arangodb.haproxy.selectorLabels" . }}
+{{- if .Chart.AppVersion }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+{{- end }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Selector labels
+*/}}
+{{- define "arangodb.haproxy.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "arangodb.name" . }}
+app.kubernetes.io/component: haproxy
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}

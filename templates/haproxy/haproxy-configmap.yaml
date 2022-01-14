@@ -1,0 +1,12 @@
+{{- if eq .Values.mode "activefailover" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "arangodb.fullname" . }}-haproxy-configmap
+data:
+  haproxy.cfg: |
+{{- include "config-haproxy.cfg" . }}
+
+  haproxy_init.sh: |
+{{- include "config-haproxy_init.sh" . }}
+{{- end }}

@@ -1,0 +1,82 @@
+{{- if eq .Values.mode "activefailover" }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "arangodb.fullname" . }}-haproxy
+  labels:
+    {{- include "arangodb.dbserver.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.haproxy.replicas }}
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      {{- include "arangodb.haproxy.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "arangodb.haproxy.selectorLabels" . | nindent 8 }}
+      name: hive-arangodb-haproxy
+      annotations:
+        checksum/config: {{ print (include "config-haproxy.cfg" .) | sha256sum }}
+    spec:
+      containers:
+        - image: "{{ .Values.haproxy.image.repository }}:{{ .Values.haproxy.image.tag}}"
+          imagePullPolicy: {{ .Values.haproxy.image.pullPolicy }}
+          lifecycle: {}
+          env:
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8888
+            initialDelaySeconds: 5
+            periodSeconds: 3
+          name: haproxy
+          ports:
+            - containerPort: 8529
+              name: http
+            - containerPort: 8404
+              name: stats
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8888
+            initialDelaySeconds: 5
+            periodSeconds: 3
+          resources: {}
+          volumeMounts:
+            - mountPath: /usr/local/etc/haproxy
+              name: data
+            - mountPath: /run/haproxy
+              name: shared-socket
+      initContainers:
+        - args:
+            - /readonly/haproxy_init.sh
+          command:
+            - sh
+          image: "{{ .Values.haproxy.image.repository }}:{{ .Values.haproxy.image.tag}}"
+          imagePullPolicy: {{ .Values.haproxy.image.pullPolicy }}
+          name: config-init
+          resources: {}
+          volumeMounts:
+            - mountPath: /readonly
+              name: config-volume
+              readOnly: true
+            - mountPath: /data
+              name: data
+      nodeSelector: {}
+      securityContext:
+        fsGroup: 1000
+        runAsNonRoot: true
+        runAsUser: 1000
+      tolerations: null
+      volumes:
+        - configMap:
+            name: hive-arangodb-haproxy-configmap
+          name: config-volume
+        - emptyDir: {}
+          name: shared-socket
+        - emptyDir: {}
+          name: data
+{{- end }}

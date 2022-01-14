@@ -3,15 +3,15 @@ kind: Service
 metadata:
   name: {{ include "arangodb.fullname" . }}
 spec:
+  type: {{ .Values.service.type }}
   ports:
     - name: server
       port: 8529
       targetPort: 8529
-  {{- if eq .Values.mode "activefailover" }}
-  clusterIP: None
-  {{- end }}
   {{- if eq .Values.mode "cluster" }}
   selector: {{- include "arangodb.coordinator.selectorLabels" . | nindent 4 }}
+  {{- else if eq .Values.mode "activefailover" }}
+  selector: {{- include "arangodb.haproxy.selectorLabels" . | nindent 4 }}
   {{- else }}
   selector: {{- include "arangodb.dbserver.selectorLabels" . | nindent 4 }}
   {{- end }}
