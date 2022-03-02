@@ -1,9 +1,9 @@
-{{ $name := include "arangodb.dbserver.fullname" . }}
-{{ $serviceName := printf "%s-internal" (include "arangodb.dbserver.fullname" .)  }}
-{{ $agentName := include "arangodb.agent.fullname" . }}
-{{ $agentServiceName := printf "%s-internal" (include "arangodb.agent.fullname" .)  }}
-{{ $replicas := ternary 1 .Values.dbserver.replicas (eq .Values.mode "single") }}
-{{ $serverContainerPort := 8529 }}
+{{- $name := include "arangodb.dbserver.fullname" . }}
+{{- $serviceName := printf "%s-internal" (include "arangodb.dbserver.fullname" .)  }}
+{{- $agentName := include "arangodb.agent.fullname" . }}
+{{- $agentServiceName := printf "%s-internal" (include "arangodb.agent.fullname" .)  }}
+{{- $replicas := ternary 1 .Values.dbserver.replicas (eq .Values.mode "single") }}
+{{- $serverContainerPort := 8529 -}}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -30,12 +30,7 @@ spec:
       volumes:
         - name: lifecycle
           emptyDir: {}
-        {{- if not .Values.auth.jwtSecret.existingFile }}
-        - name: cluster-jwt
-          secret:
-            defaultMode: 420
-            secretName: {{ include "arangodb.jwtSecret.secretName" . }}
-        {{- end }}
+        {{ include "arangodb.dbserver.volumes" . | nindent 8 }}
       initContainers:
         - name: init-lifecycle
           securityContext:
@@ -67,7 +62,7 @@ spec:
             {{- end }}
             {{- if not (eq .Values.mode "single") }}
             {{- range untilStep 0 (int .Values.agent.replicas) 1 }}
-            - '--cluster.agency-endpoint=tcp://{{ $agentName }}-{{ . }}.{{ $agentServiceName }}:8531'
+            - '--cluster.agency-endpoint=tcp://{{ $agentName }}-{{ . }}.{{ $agentServiceName }}:8529'
             {{- end }}
             - '--cluster.my-address=tcp://$(MY_POD_NAME).{{ $serviceName }}:{{ $serverContainerPort }}'
             {{- end }}
@@ -77,13 +72,14 @@ spec:
             - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.path" . }}'
             - '--server.endpoint=tcp://[::]:{{ $serverContainerPort }}'
             - '--server.endpoint=unix:///tmp/arangodb.sock'
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /lifecycle/tools/arangodb_operator
-                  - lifecycle
-                  - preStop
+            - '--log.level=debug'
+          # lifecycle:
+          #   preStop:
+          #     exec:
+          #       command:
+          #         - /lifecycle/tools/arangodb_operator
+          #         - lifecycle
+          #         - preStop
           livenessProbe:
             exec:
               command:
@@ -121,10 +117,7 @@ spec:
               name: data
             - mountPath: /lifecycle/tools
               name: lifecycle
-            {{- if not .Values.auth.jwtSecret.existingFile }}
-            - mountPath: {{ include "arangodb.jwtSecret.mountPath" . }}
-              name: cluster-jwt
-            {{- end }}
+            {{ include "arangodb.dbserver.mounts" . | nindent 12 }}
           ports:
             - containerPort: {{ $serverContainerPort }}
               name: server

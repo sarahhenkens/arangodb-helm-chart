@@ -1,10 +1,10 @@
 {{- if eq .Values.mode "cluster" }}
-{{ $name := include "arangodb.coordinator.fullname" . }}
-{{ $serviceName := printf "%s-internal" (include "arangodb.coordinator.fullname" .)  }}
-{{ $agentName := include "arangodb.agent.fullname" . }}
-{{ $agentServiceName := printf "%s-internal" (include "arangodb.agent.fullname" .)  }}
-{{ $replicas := .Values.coordinator.replicas }}
-{{ $serverContainerPort := 8529 }}
+{{- $name := include "arangodb.coordinator.fullname" . }}
+{{- $serviceName := printf "%s-internal" (include "arangodb.coordinator.fullname" .)  }}
+{{- $agentName := include "arangodb.agent.fullname" . }}
+{{- $agentServiceName := printf "%s-internal" (include "arangodb.agent.fullname" .)  }}
+{{- $replicas := .Values.coordinator.replicas }}
+{{- $serverContainerPort := 8529 }}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -33,12 +33,7 @@ spec:
           emptyDir: {}
         - name: lifecycle
           emptyDir: {}
-        {{- if not .Values.auth.jwtSecret.existingFile }}
-        - name: cluster-jwt
-          secret:
-            defaultMode: 420
-            secretName: {{ include "arangodb.jwtSecret.secretName" . }}
-        {{- end }}
+        {{ include "arangodb.coordinator.volumes" . | nindent 8 }}
       initContainers:
         - name: init-lifecycle
           securityContext:
@@ -93,29 +88,26 @@ spec:
             - '/usr/sbin/arangod'
             - '--cluster.my-role=COORDINATOR'
             {{- range untilStep 0 (int .Values.agent.replicas) 1 }}
-            - '--cluster.agency-endpoint=tcp://{{ $agentName }}-{{ . }}.{{ $agentServiceName }}:8531'
+            - '--cluster.agency-endpoint=tcp://{{ $agentName }}-{{ . }}.{{ $agentServiceName }}:8529'
             {{- end }}
             - '--cluster.my-address=tcp://$(MY_POD_NAME).{{ $serviceName }}:8529'
             - '--server.endpoint=tcp://[::]:8529'
             - '--server.authentication=true'
             - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.path" . }}'
             - '--database.directory=/data'
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                  - /lifecycle/tools/arangodb_operator
-                  - lifecycle
-                  - preStop
+          # lifecycle:
+          #   preStop:
+          #     exec:
+          #       command:
+          #         - /lifecycle/tools/arangodb_operator
+          #         - lifecycle
+          #         - preStop
           volumeMounts:
             - mountPath: /data
               name: data
             - mountPath: /lifecycle/tools
               name: lifecycle
-            {{- if not .Values.auth.jwtSecret.existingFile }}
-            - mountPath: {{ include "arangodb.jwtSecret.mountPath" . }}
-              name: cluster-jwt
-            {{- end }}
+            {{ include "arangodb.coordinator.mounts" . | nindent 12 }}
           ports:
             - containerPort: 8529
               name: server

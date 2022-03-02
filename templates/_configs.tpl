@@ -31,7 +31,7 @@
     {{- $replicas := int (toString .Values.dbserver.replicas) }}
     # decide dbserver backend to use
     frontend ft_dbserver_leader
-      bind *:8529
+      bind *:8529 alpn h2,http/1.1
       use_backend bk_dbserver_leader
 
     backend bk_dbserver_leader

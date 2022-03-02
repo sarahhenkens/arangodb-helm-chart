@@ -197,3 +197,73 @@ app.kubernetes.io/name: {{ include "arangodb.name" . }}
 app.kubernetes.io/component: haproxy
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+
+{{- define "arangodb.common.volumes" -}}
+{{- if or .Values.auth.jwtSecret.secretName (and (not .Values.auth.jwtSecret.secretName) .Values.auth.jwtSecret.create) -}}
+- name: cluster-jwt
+  secret:
+    defaultMode: 420
+    secretName: {{ include "arangodb.jwtSecret.secretName" . }}
+{{- end -}}
+{{ if .Values.global.volumes }}
+{{ toYaml .Values.global.volumes }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Additional container volume mounts for the dbserver pods
+*/}}
+{{- define "arangodb.common.mounts" -}}
+{{- if or .Values.auth.jwtSecret.secretName (and (not .Values.auth.jwtSecret.secretName) .Values.auth.jwtSecret.create) }}
+- mountPath: {{ include "arangodb.jwtSecret.mountPath" . }}
+  name: cluster-jwt
+{{- end -}}
+{{- if .Values.global.volumeMounts }}
+{{ toYaml .Values.global.volumeMounts }}
+{{- end -}}
+{{- end -}}
+
+
+{{/*
+Volumes for the dbserver pods
+*/}}
+{{- define "arangodb.dbserver.volumes" -}}
+{{ template "arangodb.common.volumes" . }}
+{{- end -}}
+
+{{/*
+Volumes for the coordinator pods
+*/}}
+{{- define "arangodb.coordinator.volumes" -}}
+{{ template "arangodb.common.volumes" . }}
+{{- end -}}
+
+{{/*
+Volumes for the agent pods
+*/}}
+{{- define "arangodb.agent.volumes" -}}
+{{ template "arangodb.common.volumes" . }}
+{{- end -}}
+
+
+{{/*
+Additional container volume mounts for the dbserver pods
+*/}}
+{{- define "arangodb.dbserver.mounts" -}}
+{{ template "arangodb.common.mounts" . }}
+{{- end -}}
+
+{{/*
+Additional container volume mounts for the coordinator pods
+*/}}
+{{- define "arangodb.coordinator.mounts" -}}
+{{ template "arangodb.common.mounts" . }}
+{{- end -}}
+
+{{/*
+Additional container volume mounts for the agent pods
+*/}}
+{{- define "arangodb.agent.mounts" -}}
+{{ template "arangodb.common.mounts" . }}
+{{- end -}}

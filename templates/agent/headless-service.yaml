@@ -10,8 +10,8 @@ spec:
   publishNotReadyAddresses: true
   ports:
     - name: server
-      port: 8531
-      targetPort: 8531
+      port: 8529
+      targetPort: 8529
   selector:
     {{- include "arangodb.agent.selectorLabels" . | nindent 4 }}
 {{- end }}

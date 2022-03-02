@@ -15,7 +15,7 @@ operator:
   image:
     repository: arangodb/kube-arangodb
     pullPolicy: IfNotPresent
-    tag: "1.2.1"
+    tag: "1.2.4"
 
 # Alternatively, the value may be specified as an array of strings.
 imagePullSecrets: []
@@ -26,6 +26,13 @@ fullnameOverride: ""
 global:
   # Extra annotations to attach to all component pods
   podAnnotations: {}
+
+  # volumes is a list of volumes made available to all containers.
+  volumes: null
+  #   - name: foo
+  #     emptyDir: {}
+
+  volumeMounts: null
 
 serviceAccount:
   # Specifies whether a service account should be created
@@ -62,13 +69,11 @@ service:
 
 auth:
   jwtSecret:
-    # jwtSecret is the name of the kubernetes secret that has the cluster JWT Secret
-    # If this is null, then a randome one will be generated upon chart installation.
-    secretName: null
+    create: true
 
-    # Setting existingFile to a file containing the JWT Secret will disable the mounting
-    # of the kubernetes secret. Commonly used when injecting the JWT secret with Vault.
-    existingFile: null
+    # jwtSecret is the name of the kubernetes secret that has the cluster JWT Secret
+    # If this is null, then a randome one will be generated unless `create` is turned of.
+    secretName: null
 
 dbserver:
   replicas: 3

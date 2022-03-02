@@ -31,7 +31,8 @@ spec:
               path: /healthz
               port: 8888
             initialDelaySeconds: 5
-            periodSeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 2
           name: haproxy
           ports:
             - containerPort: 8529
@@ -43,7 +44,8 @@ spec:
               path: /healthz
               port: 8888
             initialDelaySeconds: 5
-            periodSeconds: 3
+            periodSeconds: 60
+            timeoutSeconds: 2
           resources: {}
           volumeMounts:
             - mountPath: /usr/local/etc/haproxy
