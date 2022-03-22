@@ -68,10 +68,6 @@ spec:
             - mountPath: /data
               name: data
       nodeSelector: {}
-      securityContext:
-        fsGroup: 1000
-        runAsNonRoot: true
-        runAsUser: 1000
       tolerations: null
       volumes:
         - configMap:
