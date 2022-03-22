@@ -75,7 +75,7 @@ spec:
       tolerations: null
       volumes:
         - configMap:
-            name: hive-arangodb-haproxy-configmap
+            name: {{ include "arangodb.fullname" . }}-haproxy-configmap
           name: config-volume
         - emptyDir: {}
           name: shared-socket
