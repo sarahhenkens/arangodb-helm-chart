@@ -49,6 +49,8 @@ spec:
           volumeMounts:
             - mountPath: /lifecycle/tools
               name: lifecycle
+          resources:
+            {{- toYaml .Values.coordinator.resources | nindent 12 }}
         - name: init-uuid
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
@@ -78,6 +80,8 @@ spec:
               name: data
             - mountPath: /lifecycle/tools
               name: lifecycle
+          resources:
+            {{- toYaml .Values.coordinator.resources | nindent 12 }}
       containers:
         - name: server
           securityContext:

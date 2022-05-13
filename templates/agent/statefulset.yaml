@@ -44,6 +44,8 @@ spec:
           volumeMounts:
             - mountPath: /lifecycle/tools
               name: lifecycle
+          resources:
+            {{- toYaml .Values.agent.resources | nindent 12 }}
       containers:
         - name: server
           securityContext:

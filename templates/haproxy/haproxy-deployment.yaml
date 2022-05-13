@@ -61,7 +61,8 @@ spec:
           image: "{{ .Values.haproxy.image.repository }}:{{ .Values.haproxy.image.tag}}"
           imagePullPolicy: {{ .Values.haproxy.image.pullPolicy }}
           name: config-init
-          resources: {}
+          resources: 
+            {{- toYaml .Values.haproxy.resources | nindent 12 }}
           volumeMounts:
             - mountPath: /readonly
               name: config-volume
