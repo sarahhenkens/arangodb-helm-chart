@@ -46,7 +46,8 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 60
             timeoutSeconds: 2
-          resources: {}
+          resources: 
+            {{- toYaml .Values.haproxy.resources | nindent 12 }}
           volumeMounts:
             - mountPath: /usr/local/etc/haproxy
               name: data

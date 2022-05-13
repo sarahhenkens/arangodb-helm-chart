@@ -97,6 +97,7 @@ agent:
 
 haproxy:
   replicas: 1
+  resources: {}
   image:
     repository: haproxy
     pullPolicy: IfNotPresent
