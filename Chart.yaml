@@ -2,4 +2,4 @@ apiVersion: v2
 name: arangodb
 description: A Helm chart for ArangoDB
 version: 0.3.0
-appVersion: "3.8.4"
+appVersion: "3.8.7"

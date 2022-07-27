@@ -4,6 +4,8 @@ metadata:
   name: {{ include "arangodb.dbserver.fullname" . }}-internal
   annotations:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  labels:
+    {{- include "arangodb.dbserver.selectorLabels" . | nindent 4 }}
 spec:
   clusterIP: None
   publishNotReadyAddresses: true

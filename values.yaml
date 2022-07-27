@@ -83,6 +83,9 @@ dbserver:
     storageClass: null
     accessMode: ReadWriteOnce
 
+  metrics:
+    enabled: false
+
 coordinator:
   replicas: 3
   resources: {}
@@ -100,4 +103,4 @@ haproxy:
   image:
     repository: haproxy
     pullPolicy: IfNotPresent
-    tag: 2.5.1
+    tag: 2.5.8
