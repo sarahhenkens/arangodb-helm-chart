@@ -20,7 +20,7 @@ spec:
       {{- include "arangodb.coordinator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.global.podAnnotations }}
+      {{- with (merge .Values.coordinator.podAnnotations .Values.global.podAnnotations) }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
