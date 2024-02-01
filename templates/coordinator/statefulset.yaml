@@ -15,6 +15,7 @@ spec:
   serviceName: {{ $serviceName }}
   replicas: {{ $replicas }}
   podManagementPolicy: OrderedReady
+  minReadySeconds: {{ .Values.coordinator.minReadySeconds }}
   selector:
     matchLabels:
       {{- include "arangodb.coordinator.selectorLabels" . | nindent 6 }}
@@ -27,61 +28,11 @@ spec:
       labels:
         {{- include "arangodb.coordinator.selectorLabels" . | nindent 8 }}
     spec:
+      affinity:
+        {{- include "arangodb.coordinator.affinity" . | nindent 8 }}
       serviceAccountName: {{ include "arangodb.serviceAccountName" . }}
       volumes:
-        - name: data
-          emptyDir: {}
-        - name: lifecycle
-          emptyDir: {}
         {{ include "arangodb.coordinator.volumes" . | nindent 8 }}
-      initContainers:
-        - name: init-lifecycle
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command:
-            - /usr/bin/arangodb_operator
-            - lifecycle
-            - copy
-            - '--target'
-            - /lifecycle/tools
-          volumeMounts:
-            - mountPath: /lifecycle/tools
-              name: lifecycle
-          resources:
-            {{- toYaml .Values.coordinator.resources | nindent 12 }}
-        - name: init-uuid
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/sh", "-c"]
-          args:
-            - >-
-              /lifecycle/tools/arangodb_operator uuid
-              --uuid-path /data/UUID
-              --engine-path /data/ENGINE
-              --uuid CRDN-$(echo -n "$MY_POD_NAMESPACE-$MY_POD_NAME" | sha1sum | awk '{print $1}')
-              --engine rocksdb
-          env:
-            - name: MY_POD_NAME
-              valueFrom:
-                fieldRef:
-                  apiVersion: v1
-                  fieldPath: metadata.name
-            - name: MY_POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  apiVersion: v1
-                  fieldPath: metadata.namespace
-          volumeMounts:
-            - mountPath: /data
-              name: data
-            - mountPath: /lifecycle/tools
-              name: lifecycle
-          resources:
-            {{- toYaml .Values.coordinator.resources | nindent 12 }}
       containers:
         - name: server
           securityContext:
@@ -99,18 +50,24 @@ spec:
             - '--server.authentication=true'
             - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.path" . }}'
             - '--database.directory=/data'
-          # lifecycle:
-          #   preStop:
-          #     exec:
-          #       command:
-          #         - /lifecycle/tools/arangodb_operator
-          #         - lifecycle
-          #         - preStop
+            - '--cluster.min-replication-factor={{ .Values.coordinator.clusterMinReplicationFactor }}'
+            {{- if .Values.coordinator.logLevel }}
+            - '--log.level={{ .Values.coordinator.logLevel }}'
+            {{- end }}
+          livenessProbe:
+            exec:
+              command:
+              - '/bin/sh'
+              - '-c'
+              - 'wget --spider --header "$(arangodb auth header --auth.jwt-secret={{ include "arangodb.jwtSecret.path" . }})" 127.0.0.1:{{ $serverContainerPort }}/_api/version'
+            failureThreshold: 5
+            initialDelaySeconds: 900
+            periodSeconds: 30
+            successThreshold: 1
+            timeoutSeconds: 2
           volumeMounts:
             - mountPath: /data
               name: data
-            - mountPath: /lifecycle/tools
-              name: lifecycle
             {{ include "arangodb.coordinator.mounts" . | nindent 12 }}
           ports:
             - containerPort: 8529
@@ -150,4 +107,16 @@ spec:
           resources:
             {{- toYaml .Values.coordinator.resources | nindent 12 }}
       {{- include "imagePullSecrets" . | nindent 6 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - {{ .Values.coordinator.storage.accessMode | default "ReadWriteOnce" }}
+        resources:
+          requests:
+            storage: {{ .Values.coordinator.storage.size }}
+        {{- if .Values.coordinator.storage.storageClass }}
+        storageClassName: {{ .Values.coordinator.storage.storageClass }}
+        {{- end }}
 {{- end }}

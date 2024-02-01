@@ -14,6 +14,7 @@ spec:
   serviceName: {{ $serviceName }}
   replicas: {{ $replicas }}
   podManagementPolicy: OrderedReady
+  minReadySeconds: {{ .Values.dbserver.minReadySeconds }}
   selector:
     matchLabels:
       {{- include "arangodb.dbserver.selectorLabels" . | nindent 6 }}
@@ -26,28 +27,11 @@ spec:
       labels:
         {{- include "arangodb.dbserver.selectorLabels" . | nindent 8 }}
     spec:
+      affinity:
+        {{- include "arangodb.dbserver.affinity" . | nindent 8 }}
       serviceAccountName: {{ include "arangodb.serviceAccountName" . }}
       volumes:
-        - name: lifecycle
-          emptyDir: {}
         {{ include "arangodb.dbserver.volumes" . | nindent 8 }}
-      initContainers:
-        - name: init-lifecycle
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command:
-            - /usr/bin/arangodb_operator
-            - lifecycle
-            - copy
-            - '--target'
-            - /lifecycle/tools
-          volumeMounts:
-            - mountPath: /lifecycle/tools
-              name: lifecycle
-          resources:
-            {{- toYaml .Values.dbserver.resources | nindent 12 }}
       containers:
         - name: server
           securityContext:
@@ -57,12 +41,7 @@ spec:
           command:
             - '/usr/sbin/arangod'
             {{- if eq .Values.mode "cluster" }}
-            - '--cluster.my-role=PRIMARY'
-            {{- else if eq .Values.mode "activefailover" }}
-            - '--cluster.my-role=SINGLE'
-            - '--replication.active-failover'
-            {{- end }}
-            {{- if not (eq .Values.mode "single") }}
+            - '--cluster.my-role=DBSERVER'
             {{- range untilStep 0 (int .Values.agent.replicas) 1 }}
             - '--cluster.agency-endpoint=tcp://{{ $agentName }}-{{ . }}.{{ $agentServiceName }}:8529'
             {{- end }}
@@ -70,45 +49,26 @@ spec:
             {{- end }}
             - '--database.directory=/data'
             - '--server.authentication=true'
-            - '--server.authentication-unix-sockets=true'
             - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.path" . }}'
             - '--server.endpoint=tcp://[::]:{{ $serverContainerPort }}'
-            - '--server.endpoint=unix:///tmp/arangodb.sock'
-            - '--log.level=debug'
-          # lifecycle:
-          #   preStop:
-          #     exec:
-          #       command:
-          #         - /lifecycle/tools/arangodb_operator
-          #         - lifecycle
-          #         - preStop
+            {{- if .Values.dbserver.logLevel }}
+            - '--log.level={{ .Values.dbserver.logLevel }}'
+            {{- end }}
           livenessProbe:
             exec:
               command:
-                - /lifecycle/tools/arangodb_operator
-                - lifecycle
-                - probe
-                - '--endpoint=/_api/version'
-                - '--auth'
-            failureThreshold: 10
+              - '/bin/sh'
+              - '-c'
+              - 'wget --spider --header "$(arangodb auth header --auth.jwt-secret={{ include "arangodb.jwtSecret.path" . }})" 127.0.0.1:{{ $serverContainerPort }}/_api/version'
+            failureThreshold: 5
             initialDelaySeconds: 900
-            periodSeconds: 60
+            periodSeconds: 30
             successThreshold: 1
             timeoutSeconds: 2
           readinessProbe:
-            {{- if eq .Values.mode "activefailover" }}
-            exec:
-              command:
-                - /lifecycle/tools/arangodb_operator
-                - lifecycle
-                - probe
-                - '--endpoint=/_api/version'
-                - '--auth'
-            {{- else }}
             httpGet:
               path: /_admin/server/availability
               port: {{ $serverContainerPort }}
-            {{- end }}
             failureThreshold: 10
             initialDelaySeconds: 2
             periodSeconds: 2
@@ -117,8 +77,6 @@ spec:
           volumeMounts:
             - mountPath: /data
               name: data
-            - mountPath: /lifecycle/tools
-              name: lifecycle
             {{ include "arangodb.dbserver.mounts" . | nindent 12 }}
           ports:
             - containerPort: {{ $serverContainerPort }}

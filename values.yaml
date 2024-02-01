@@ -10,13 +10,6 @@ image:
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
 
-# The operator of which we pull our lifecycle tools from
-operator:
-  image:
-    repository: arangodb/kube-arangodb
-    pullPolicy: IfNotPresent
-    tag: "1.2.4"
-
 # Alternatively, the value may be specified as an array of strings.
 imagePullSecrets: []
 
@@ -36,7 +29,7 @@ global:
 
 serviceAccount:
   # Specifies whether a service account should be created
-  create: true
+  create: false
   # Annotations to add to the service account
   annotations: {}
   # The name of the service account to use.
@@ -62,8 +55,6 @@ nodeSelector: {}
 
 tolerations: []
 
-affinity: {}
-
 service:
   type: ClusterIP
 
@@ -76,6 +67,8 @@ auth:
     secretName: null
 
 dbserver:
+  affinity: {}
+  minReadySeconds: 30
   replicas: 3
   resources: {}
   storage:
@@ -84,21 +77,22 @@ dbserver:
     accessMode: ReadWriteOnce
 
 coordinator:
-  replicas: 3
+  affinity: {}
+  minReadySeconds: 5
+  replicas: 2
   resources: {}
-
-agent:
-  replicas: 3
-  resources: {}
+  clusterMinReplicationFactor: 2
   storage:
-    size: 5Gi
+    size: 100Mi
     storageClass: null
     accessMode: ReadWriteOnce
 
-haproxy:
-  replicas: 1
+agent:
+  affinity: {}
+  minReadySeconds: 15
+  replicas: 3
   resources: {}
-  image:
-    repository: haproxy
-    pullPolicy: IfNotPresent
-    tag: 2.5.1
+  storage:
+    size: 500Mi
+    storageClass: null
+    accessMode: ReadWriteOnce

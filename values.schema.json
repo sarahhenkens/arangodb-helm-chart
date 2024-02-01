@@ -1,28 +1,45 @@
 {
-	"$schema": "http://json-schema.org/draft-07/schema",
-	"required": [
-		"mode"
-	],
-	"properties": {
-		"mode": {
-			"type": "string",
-			"enum": ["cluster", "activefailover", "single"]
-		},
-		"auth": {
-			"type": "object",
-			"properties": {
-				"jwtSecret": {
-					"type": "object",
-					"properties": {
-						"secretName": {
-							"type": ["string", "null"]
-						},
-						"existingFile": {
-							"type": ["string", "null"]
-						}
-					}
-				}
-			}
-		}
-	}
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "required": [
+    "mode"
+  ],
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": [
+        "cluster",
+        "single"
+      ]
+    },
+    "coordinator": {
+      "type": "object",
+      "properties": {
+        "clusterMinReplicationFactor": {
+          "type": "integer"
+        }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "properties": {
+        "jwtSecret": {
+          "type": "object",
+          "properties": {
+            "secretName": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "existingFile": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
 }

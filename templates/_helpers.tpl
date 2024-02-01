@@ -198,6 +198,80 @@ app.kubernetes.io/component: haproxy
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
+{{/*
+Agent Affinity
+*/}}
+{{- define "arangodb.agent.affinity" -}}
+{{- if eq ( toString ( .Values.agent.affinity )) "preferredDuringSchedulingIgnoredDuringExecution" }}
+podAntiAffinity:
+  preferredDuringSchedulingIgnoredDuringExecution:
+  - podAffinityTerm:
+      labelSelector:
+        matchLabels:
+          {{- include "arangodb.agent.selectorLabels" . | nindent 10 }}
+      topologyKey: kubernetes.io/hostname
+    weight: 1
+{{- else if eq ( toString ( .Values.agent.affinity )) "requiredDuringSchedulingIgnoredDuringExecution" }}
+podAntiAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+  - labelSelector:
+      matchLabels:
+        {{- include "arangodb.agent.selectorLabels" . | nindent 8 }}
+    topologyKey: kubernetes.io/hostname
+{{- else }}
+{{ toYaml .Values.agent.affinity }}
+{{- end }}
+{{- end }}
+
+{{/*
+Coordinator Affinity
+*/}}
+{{- define "arangodb.coordinator.affinity" -}}
+{{- if eq ( toString ( .Values.coordinator.affinity )) "preferredDuringSchedulingIgnoredDuringExecution" }}
+podAntiAffinity:
+  preferredDuringSchedulingIgnoredDuringExecution:
+  - podAffinityTerm:
+      labelSelector:
+        matchLabels:
+          {{- include "arangodb.coordinator.selectorLabels" . | nindent 10 }}
+      topologyKey: kubernetes.io/hostname
+    weight: 1
+{{- else if eq ( toString ( .Values.coordinator.affinity )) "requiredDuringSchedulingIgnoredDuringExecution" }}
+podAntiAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+  - labelSelector:
+      matchLabels:
+        {{- include "arangodb.coordinator.selectorLabels" . | nindent 8 }}
+    topologyKey: kubernetes.io/hostname
+{{- else }}
+{{ toYaml .Values.coordinator.affinity }}
+{{- end }}
+{{- end }}
+
+{{/*
+DBServer Affinity
+*/}}
+{{- define "arangodb.dbserver.affinity" -}}
+{{- if eq ( toString ( .Values.dbserver.affinity )) "preferredDuringSchedulingIgnoredDuringExecution" }}
+podAntiAffinity:
+  preferredDuringSchedulingIgnoredDuringExecution:
+  - podAffinityTerm:
+      labelSelector:
+        matchLabels:
+          {{- include "arangodb.dbserver.selectorLabels" . | nindent 10 }}
+      topologyKey: kubernetes.io/hostname
+    weight: 1
+{{- else if eq ( toString ( .Values.dbserver.affinity )) "requiredDuringSchedulingIgnoredDuringExecution" }}
+podAntiAffinity:
+  requiredDuringSchedulingIgnoredDuringExecution:
+  - labelSelector:
+      matchLabels:
+        {{- include "arangodb.dbserver.selectorLabels" . | nindent 8 }}
+    topologyKey: kubernetes.io/hostname
+{{- else }}
+{{ toYaml .Values.dbserver.affinity }}
+{{- end }}
+{{- end }}
 
 {{- define "arangodb.common.volumes" -}}
 {{- if or .Values.auth.jwtSecret.secretName (and (not .Values.auth.jwtSecret.secretName) .Values.auth.jwtSecret.create) -}}

@@ -1,7 +1,8 @@
-{{- if or (eq .Values.mode "cluster") (eq .Values.mode "activefailover") }}
+{{- if eq .Values.mode "cluster" }}
 {{- $name := (include "arangodb.agent.fullname" .) }}
 {{- $serviceName := printf "%s-internal" (include "arangodb.agent.fullname" .)  }}
 {{- $replicas := .Values.agent.replicas }}
+{{- $serverContainerPort := 8529 -}}
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -12,6 +13,7 @@ spec:
   serviceName: {{ $serviceName }}
   replicas: {{ $replicas }}
   podManagementPolicy: OrderedReady
+  minReadySeconds: {{ .Values.agent.minReadySeconds }}
   selector:
     matchLabels:
       {{- include "arangodb.agent.selectorLabels" . | nindent 6 }}
@@ -24,28 +26,11 @@ spec:
       labels:
         {{- include "arangodb.agent.selectorLabels" . | nindent 8 }}
     spec:
+      affinity:
+        {{- include "arangodb.agent.affinity" . | nindent 8 }}
       serviceAccountName: {{ include "arangodb.serviceAccountName" . }}
       volumes:
-        - name: lifecycle
-          emptyDir: {}
         {{ include "arangodb.agent.volumes" . | nindent 8 }}
-      initContainers:
-        - name: init-lifecycle
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.operator.image.repository }}:{{ .Values.operator.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command:
-            - /usr/bin/arangodb_operator
-            - lifecycle
-            - copy
-            - '--target'
-            - /lifecycle/tools
-          volumeMounts:
-            - mountPath: /lifecycle/tools
-              name: lifecycle
-          resources:
-            {{- toYaml .Values.agent.resources | nindent 12 }}
       containers:
         - name: server
           securityContext:
@@ -56,44 +41,32 @@ spec:
             - '/usr/sbin/arangod'
             - '--agency.activate=true'
             - '--agency.supervision=true'
-            {{- if eq .Values.mode "activefailover" }}
-            - '--agency.supervision-grace-period=30'
-            {{- end }}
             - '--agency.size={{ $replicas }}'
             {{- range untilStep 0 (int $replicas) 1 }}
-            - '--agency.endpoint=tcp://{{ $name }}-{{ . }}.{{ $serviceName }}:8529'
+            - '--agency.endpoint=tcp://{{ $name }}-{{ . }}.{{ $serviceName }}:{{ $serverContainerPort }}'
             {{- end }}
-            - '--agency.my-address=tcp://$(MY_POD_NAME).{{ $serviceName }}:8529'
-            - '--server.endpoint=tcp://[::]:8529'
-            - '--database.directory=/agent-data'
+            - '--agency.my-address=tcp://$(MY_POD_NAME).{{ $serviceName }}:{{ $serverContainerPort }}'
+            - '--server.endpoint=tcp://[::]:{{ $serverContainerPort }}'
+            - '--database.directory=/data'
             - '--server.authentication=true'
             - '--server.jwt-secret-keyfile={{ include "arangodb.jwtSecret.path" . }}'
-            - '--log.level=debug'
-          # lifecycle:
-          #   preStop:
-          #     exec:
-          #       command:
-          #         - /lifecycle/tools/arangodb_operator
-          #         - lifecycle
-          #         - preStop
+            {{- if .Values.agent.logLevel }}
+            - '--log.level={{ .Values.agent.logLevel }}'
+            {{- end }}
           livenessProbe:
             exec:
               command:
-                - /lifecycle/tools/arangodb_operator
-                - lifecycle
-                - probe
-                - '--endpoint=/_api/version'
-                - '--auth'
-            failureThreshold: 10
+              - '/bin/sh'
+              - '-c'
+              - 'wget --spider --header "$(arangodb auth header --auth.jwt-secret={{ include "arangodb.jwtSecret.path" . }})" 127.0.0.1:{{ $serverContainerPort }}/_api/version'
+            failureThreshold: 5
             initialDelaySeconds: 900
-            periodSeconds: 60
+            periodSeconds: 30
             successThreshold: 1
             timeoutSeconds: 2
           volumeMounts:
-            - mountPath: /agent-data
+            - mountPath: /data
               name: data
-            - mountPath: /lifecycle/tools
-              name: lifecycle
             {{ include "arangodb.agent.mounts" . | nindent 12 }}
           ports:
             - containerPort: 8529

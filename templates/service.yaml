@@ -10,8 +10,6 @@ spec:
       targetPort: 8529
   {{- if eq .Values.mode "cluster" }}
   selector: {{- include "arangodb.coordinator.selectorLabels" . | nindent 4 }}
-  {{- else if eq .Values.mode "activefailover" }}
-  selector: {{- include "arangodb.haproxy.selectorLabels" . | nindent 4 }}
   {{- else }}
   selector: {{- include "arangodb.dbserver.selectorLabels" . | nindent 4 }}
   {{- end }}
