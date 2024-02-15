@@ -96,3 +96,5 @@ agent:
     size: 500Mi
     storageClass: null
     accessMode: ReadWriteOnce
+
+extraDeploy: []
